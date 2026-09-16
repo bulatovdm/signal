@@ -1,0 +1,2 @@
+timestamp,label,host,count,awdl,min,avg,max,stddev,p50,p95,p99,loss_pct,background_mbit,channel,rssi,noise,verdict
+2026-09-16T17:33:52Z,до установки сторожа: awdl0 down,192.168.1.1,100,down,1.978,2.999,4.837,0.299,2.954,3.442,4.837,0,0.72,149/80,-51,-87,норма
