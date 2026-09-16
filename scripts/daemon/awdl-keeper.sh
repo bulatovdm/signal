@@ -45,12 +45,16 @@ timestamp() { date '+%Y-%m-%d %H:%M:%S'; }
 log_line() {
     local message="$1"
     mkdir -p "$LOG_DIR"
+    # launchd hands the daemon a umask of its own (observed: directories come
+    # out 744), and a log nobody but root can open is a log nobody reads.
+    chmod 755 "$LOG_DIR" 2>/dev/null
     if [[ -f "$LOG_FILE" ]]; then
         local size
         size=$(stat -f%z "$LOG_FILE" 2>/dev/null || echo 0)
         [[ "$size" -gt "$LOG_MAX_BYTES" ]] && mv -f "$LOG_FILE" "${LOG_FILE}.1"
     fi
     echo "$(timestamp) $message" >> "$LOG_FILE"
+    chmod 644 "$LOG_FILE" 2>/dev/null
 }
 
 interface_is_up() {
@@ -86,7 +90,7 @@ human_bytes() {
 # design has (ADR-005).
 ensure_state_files() {
     mkdir -p "$STATE_DIR" "$LOG_DIR"
-    chmod 755 "$STATE_DIR"
+    chmod 755 "$STATE_DIR" "$LOG_DIR"
     if [[ ! -f "$REQUEST_FILE" ]]; then
         echo 0 > "$REQUEST_FILE"
     fi

@@ -10,6 +10,10 @@ private let statusPath = "/usr/local/var/run/signal/status"
 private let requestPath = "/usr/local/var/run/signal/request"
 private let logPath = "/usr/local/var/log/signal/awdl.log"
 private let refreshInterval: TimeInterval = 2
+// The system default for a status item glyph is around 15 pt and reads as tiny
+// next to Wi-Fi and battery; 19 pt with a large scale clipped against the menu
+// bar. 16 pt at medium scale is the widest that still fits whole.
+private let iconPointSize: CGFloat = 16
 
 struct KeeperStatus {
     let awdl: String
@@ -60,8 +64,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func symbol(_ name: String, fallback: String) -> NSImage? {
-        NSImage(systemSymbolName: name, accessibilityDescription: "Signal")
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: "Signal")
             ?? NSImage(systemSymbolName: fallback, accessibilityDescription: "Signal")
+        let configuration = NSImage.SymbolConfiguration(pointSize: iconPointSize, weight: .medium)
+            .applying(.init(scale: .medium))
+        let scaled = image?.withSymbolConfiguration(configuration)
+        // Template rendering keeps the glyph correct in both menu bar themes.
+        scaled?.isTemplate = true
+        return scaled
     }
 
     private func refresh() {
