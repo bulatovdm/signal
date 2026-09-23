@@ -74,6 +74,18 @@ print_keeper_state() {
     echo "  сторож: НЕ установлен (signal install)"
   fi
   echo "  awdl0:  $(ifconfig awdl0 2>/dev/null | head -1 | grep -q '<UP,' && echo 'поднят' || echo 'погашен')"
+  # The watcher's episodes answer "was it bad while nobody was looking" — the
+  # question every complaint starts with (ADR-014).
+  local link_status=/usr/local/var/run/signal/link link_log=/usr/local/var/log/signal/link.log
+  if [ -f "$link_status" ]; then
+    echo "  канал:  $(sed -n 's/.*"verdict":"\([^"]*\)".*"p50":\([0-9.]*\).*/\1, p50 \2 мс/p' "$link_status")"
+    if [ -f "$link_log" ] && grep -qv 'наблюдатель запущен' "$link_log"; then
+      echo "  последние эпизоды канала:"
+      grep -v 'наблюдатель запущен' "$link_log" | tail -3 | sed 's/^/    /'
+    fi
+  else
+    echo "  канал:  наблюдатель не пишет (signal install)"
+  fi
   local last_measurement
   last_measurement=$(ls -1 "$(repository_root)"/measurements/*.csv 2>/dev/null | tail -1)
   if [ -n "$last_measurement" ]; then

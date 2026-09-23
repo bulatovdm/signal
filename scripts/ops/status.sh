@@ -12,12 +12,6 @@ source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/paths.sh"
 source "$SCRIPT_DIR/../lib/awdl.sh"
 
-# Flat JSON only — the status file is written by us and never nested (ADR-005).
-json_value() {
-    local key=$1 file=$2
-    sed -n "s/.*\"$key\":\"\{0,1\}\([^,\"}]*\)\"\{0,1\}.*/\1/p" "$file" 2>/dev/null | head -1
-}
-
 human_duration() {
     local seconds=$1
     if   [[ $seconds -lt 60 ]];   then echo "${seconds} с"
@@ -69,6 +63,17 @@ else
 fi
 
 echo "  радио        канал $(wifi_channel), RSSI $(wifi_rssi), шум $(wifi_noise), сеть «$(wifi_ssid)»"
+
+if [[ -f "$SIGNAL_LINK_STATUS_FILE" ]]; then
+    link_verdict=$(json_value verdict "$SIGNAL_LINK_STATUS_FILE")
+    link_cause=$(json_value cause "$SIGNAL_LINK_STATUS_FILE")
+    link_age=$((now - $(json_value updated "$SIGNAL_LINK_STATUS_FILE")))
+    printf "  канал        %s, p50 %s мс%s%s\n" "$link_verdict" \
+        "$(json_value p50 "$SIGNAL_LINK_STATUS_FILE")" "${link_cause:+ — $link_cause}" \
+        "$( [[ $link_age -gt 180 ]] && echo " (устарело на $link_age с)" )"
+else
+    echo "  канал        наблюдатель не пишет — signal install"
+fi
 
 if [[ -f "$SIGNAL_LOG_FILE" ]]; then
     echo

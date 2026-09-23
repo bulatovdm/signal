@@ -100,6 +100,32 @@ install_daemon() {
     log_ok "Сторож загружен в launchd (переживает перезагрузку и сон)"
 }
 
+# The watcher sources its lib at run time, so the lib is installed next to it:
+# a root daemon must not read code from a user-writable checkout.
+install_watch() {
+    $SUDO mkdir -p "$SIGNAL_LIBEXEC_DIR/lib"
+    $SUDO install -m 644 -o root -g wheel "$SCRIPT_DIR/lib/awdl.sh" "$SCRIPT_DIR/lib/stats.sh" "$SIGNAL_LIBEXEC_DIR/lib/"
+    $SUDO install -m 755 -o root -g wheel "$SCRIPT_DIR/daemon/link-watch.sh" "$SIGNAL_WATCH_BIN"
+    $SUDO install -m 644 -o root -g wheel "$SCRIPT_DIR/daemon/$(basename "$SIGNAL_WATCH_PLIST")" "$SIGNAL_WATCH_PLIST"
+    log_ok "Наблюдатель: $SIGNAL_WATCH_BIN"
+
+    if launchctl print "system/$SIGNAL_WATCH_LABEL" >/dev/null 2>&1; then
+        $SUDO launchctl bootout "system/$SIGNAL_WATCH_LABEL" 2>/dev/null || true
+        sleep 1
+    fi
+    $SUDO launchctl bootstrap system "$SIGNAL_WATCH_PLIST"
+    log_ok "Наблюдатель загружен в launchd: раз в минуту пишет состояние канала"
+}
+
+uninstall_watch() {
+    if launchctl print "system/$SIGNAL_WATCH_LABEL" >/dev/null 2>&1; then
+        $SUDO launchctl bootout "system/$SIGNAL_WATCH_LABEL" 2>/dev/null || true
+        log_ok "Наблюдатель выгружен"
+    fi
+    $SUDO rm -f "$SIGNAL_WATCH_PLIST" "$SIGNAL_WATCH_BIN"
+    $SUDO rm -rf "$SIGNAL_LIBEXEC_DIR/lib"
+}
+
 uninstall_daemon() {
     if launchctl print "system/$SIGNAL_DAEMON_LABEL" >/dev/null 2>&1; then
         $SUDO launchctl bootout "system/$SIGNAL_DAEMON_LABEL" 2>/dev/null || true
@@ -118,9 +144,11 @@ case "${1:-}" in
         [[ $(id -u) -eq 0 ]] || { log_error "--root-steps запускается только от root"; exit 1; }
         write_default_config
         install_daemon
+        install_watch
         exit 0 ;;
     --root-uninstall)
         [[ $(id -u) -eq 0 ]] || { log_error "--root-uninstall запускается только от root"; exit 1; }
+        uninstall_watch
         uninstall_daemon
         exit 0 ;;
     --uninstall)

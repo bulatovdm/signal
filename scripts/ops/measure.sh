@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$SCRIPT_DIR/../lib/log.sh"
 source "$SCRIPT_DIR/../lib/awdl.sh"
+source "$SCRIPT_DIR/../lib/stats.sh"
 
 LABEL=""
 HOST=""
@@ -65,44 +66,15 @@ if [[ $ping_status -ne 0 && -z "$(grep -c 'packets transmitted' <<<"$ping_output
     exit 1
 fi
 
-# Percentiles come from the individual replies, not from ping's summary line:
-# the summary has no distribution, and the distribution is the whole point.
-stats="$(awk '
-    /time=/ {
-        match($0, /time=[0-9.]+/)
-        values[n++] = substr($0, RSTART + 5, RLENGTH - 5) + 0
-    }
-    END {
-        if (n == 0) { print "0 0 0 0 0 0 0 0"; exit }
-        for (i = 0; i < n - 1; i++)
-            for (j = 0; j < n - 1 - i; j++)
-                if (values[j] > values[j+1]) { t = values[j]; values[j] = values[j+1]; values[j+1] = t }
-        sum = 0
-        for (i = 0; i < n; i++) sum += values[i]
-        mean = sum / n
-        variance = 0
-        for (i = 0; i < n; i++) variance += (values[i] - mean) ^ 2
-        stddev = (n > 1) ? sqrt(variance / n) : 0
-        p50 = values[int(n * 0.50)]; if (p50 == "") p50 = values[n-1]
-        p95 = values[int(n * 0.95)]; if (p95 == "") p95 = values[n-1]
-        p99 = values[int(n * 0.99)]; if (p99 == "") p99 = values[n-1]
-        printf "%.3f %.3f %.3f %.3f %.3f %.3f %.3f %d\n",
-            values[0], mean, values[n-1], stddev, p50, p95, p99, n
-    }' <<<"$ping_output")"
+stats="$(rtt_stats <<<"$ping_output")"
 
 read -r MIN AVG MAX STDDEV P50 P95 P99 RECEIVED <<<"$stats"
 
-LOSS="$(awk -F'[,%]' '/packet loss/ {gsub(/ /, "", $3); print $3 + 0; exit}' <<<"$ping_output")"
-[[ -n "${LOSS:-}" ]] || LOSS=100
+LOSS="$(ping_loss_pct <<<"$ping_output")"
 
 duration=$(( finished_at - started_at ))
 [[ $duration -gt 0 ]] || duration=1
-if [[ -n "${bytes_before:-}" && -n "${bytes_after:-}" && "$bytes_after" -ge "${bytes_before:-0}" ]]; then
-    BACKGROUND_MBIT="$(awk -v a="$bytes_before" -v b="$bytes_after" -v s="$duration" \
-        'BEGIN { printf "%.2f", (b - a) * 8 / s / 1000000 }')"
-else
-    BACKGROUND_MBIT="?"
-fi
+BACKGROUND_MBIT="$(background_mbit "${bytes_before:-}" "${bytes_after:-}" "$duration")"
 
 CHANNEL="$(wifi_channel)"; RSSI="$(wifi_rssi)"; NOISE="$(wifi_noise)"
 # Commas are the column separator, and the channel arrives as "149,80": keep

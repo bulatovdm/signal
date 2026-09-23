@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.dima.signal.link-watch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/usr/local/libexec/signal/link-watch</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <!-- Not Background: launchd coalesces a background job's timers, and the
+         first sample sent 13 pings of 20 in 9 s instead of 2 s. The watcher
+         measures time, so its timers must be honest. -->
+    <key>ProcessType</key>
+    <string>Standard</string>
+    <!-- 0022: without it launchd leaves the state and log directories at 744,
+         and the CLI and the menu bar app cannot read what the daemon writes. -->
+    <key>Umask</key>
+    <integer>18</integer>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/log/signal/link-watch.err</string>
+    <key>StandardOutPath</key>
+    <string>/dev/null</string>
+</dict>
+</plist>

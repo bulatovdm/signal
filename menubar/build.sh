@@ -70,7 +70,15 @@ install_agent() {
 </plist>
 PLIST
 
-    launchctl bootout "gui/$(id -u)/$SIGNAL_MENU_LABEL" 2>/dev/null || true
+    # bootout returns before the job is gone; bootstrapping straight after it
+    # fails with "5: Input/output error" when the agent was already running.
+    if launchctl bootout "gui/$(id -u)/$SIGNAL_MENU_LABEL" 2>/dev/null; then
+        local attempt
+        for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            launchctl print "gui/$(id -u)/$SIGNAL_MENU_LABEL" >/dev/null 2>&1 || break
+            sleep 0.5
+        done
+    fi
     launchctl bootstrap "gui/$(id -u)" "$SIGNAL_MENU_PLIST"
     log_ok "Значок в строке меню запущен и переживёт перезагрузку"
 }
