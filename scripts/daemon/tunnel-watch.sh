@@ -30,6 +30,10 @@ EVENTS_FILE="$LOG_DIR/tunnel.log"
 CONFIG_FILE="${SIGNAL_CONFIG_FILE:-/usr/local/etc/signal/keeper.conf}"
 
 TUNNEL_INTERVAL_SECONDS=900
+# The cable, not whatever carries the default route: Dmitriy moves the Wi-Fi
+# side to another tunnel at times, and the history must stay about one path.
+# Every probe is bound to this interface, and the policy is looked up by its MAC.
+TUNNEL_INTERFACE="${SIGNAL_TUNNEL_INTERFACE:-en0}"
 # How often the wait between samples looks at the mark file.
 TUNNEL_MARK_POLL_SECONDS=10
 # Traffic through the tunnel is counted over this window before the probe, so
@@ -85,8 +89,8 @@ ensure_state_files() {
 # "epoch text" — the epoch tells a new mark from one already handled.
 read_mark() { head -1 "$MARK_FILE" 2>/dev/null; }
 
-primary_interface() {
-    route -n get default 2>/dev/null | awk '/interface:/ {print $2; exit}'
+interface_is_active() {
+    ifconfig "$1" 2>/dev/null | grep -q 'status: active'
 }
 
 mbit_between() {
@@ -157,7 +161,7 @@ measure_busy() {
 # "address median replies" of the second hop. Behind the router's tunnel it is
 # the entry node; without a policy it is the provider.
 second_hop() {
-    traceroute -n -f 2 -m 2 -q "$TUNNEL_HOP_PROBES" -w 1 "$TUNNEL_PING_HOST" 2>/dev/null | awk '
+    traceroute -n -i "$IFACE" -f 2 -m 2 -q "$TUNNEL_HOP_PROBES" -w 1 "$TUNNEL_PING_HOST" 2>/dev/null | awk '
         {
             for (i = 1; i <= NF; i++) {
                 if (address == "" && $i ~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/) address = $i
@@ -177,9 +181,9 @@ second_hop() {
 download_mbit() {
     local url=$1 range=${2:-} answer code speed
     if [[ -n "$range" ]]; then
-        answer=$(/usr/bin/curl -s -o /dev/null -m "$TUNNEL_DOWNLOAD_TIMEOUT" -r "$range" -w '%{http_code} %{speed_download}' "$url" 2>/dev/null)
+        answer=$(/usr/bin/curl -s -o /dev/null --interface "$IFACE" -m "$TUNNEL_DOWNLOAD_TIMEOUT" -r "$range" -w '%{http_code} %{speed_download}' "$url" 2>/dev/null)
     else
-        answer=$(/usr/bin/curl -s -o /dev/null -m "$TUNNEL_DOWNLOAD_TIMEOUT" -w '%{http_code} %{speed_download}' "$url" 2>/dev/null)
+        answer=$(/usr/bin/curl -s -o /dev/null --interface "$IFACE" -m "$TUNNEL_DOWNLOAD_TIMEOUT" -w '%{http_code} %{speed_download}' "$url" 2>/dev/null)
     fi
     read -r code speed <<<"$answer"
     case "$code" in
@@ -201,13 +205,13 @@ is_at_least() { awk -v a="$1" -v b="$2" 'BEGIN { exit !(a != "?" && a + 0 >= b +
 is_below()    { awk -v a="$1" -v b="$2" 'BEGIN { exit !(a != "?" && a + 0 <  b + 0) }'; }
 
 take_sample() {
-    IFACE="$(primary_interface)"; [[ -n "$IFACE" ]] || IFACE="?"
+    IFACE="$TUNNEL_INTERFACE"
     router_snapshot
     measure_busy
     router_logout
 
     local output
-    output="$(ping -c "$TUNNEL_PING_COUNT" -i "$TUNNEL_PING_INTERVAL" -t $((TUNNEL_PING_COUNT / 4 + 5)) "$TUNNEL_PING_HOST" 2>&1)"
+    output="$(ping -b "$IFACE" -c "$TUNNEL_PING_COUNT" -i "$TUNNEL_PING_INTERVAL" -t $((TUNNEL_PING_COUNT / 4 + 5)) "$TUNNEL_PING_HOST" 2>&1)"
     read -r _ _ PING_MAX _ PING_P50 PING_P95 _ _ <<<"$(rtt_stats <<<"$output")"
     PING_LOSS="$(ping_loss_pct <<<"$output")"
 
@@ -219,7 +223,9 @@ take_sample() {
 }
 
 classify() {
-    if [[ "$PING_LOSS" == "100" && "$BEST_MBIT" == "?" ]]; then
+    if ! interface_is_active "$IFACE"; then
+        VERDICT="нет кабеля"
+    elif [[ "$PING_LOSS" == "100" && "$BEST_MBIT" == "?" ]]; then
         VERDICT="нет связи"
     elif is_at_least "$TUNNEL_DOWN_MBIT" "$TUNNEL_BUSY_MBIT"; then
         VERDICT="занят"
