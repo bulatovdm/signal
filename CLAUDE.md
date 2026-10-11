@@ -1,9 +1,9 @@
 # Signal — инструкции для работы над проектом
 
 Проект держит радио этого Mac чистым и умеет доказать это цифрами. Предмет — последняя миля
-на самой машине: её Wi-Fi, её интерфейсы, её замеры (ADR-001) — и радиочасть домашнего роутера
-Keenetic: SSID, диапазоны, роуминг (ADR-012). Туннели, DNS и серверы живут в соседнем проекте
-`veil` и сюда не относятся.
+на самой машине: её Wi-Fi, её интерфейсы, её замеры (ADR-001) — радиочасть домашнего роутера
+Keenetic: SSID, диапазоны, роуминг (ADR-012) — и туннель роутера **глазами этого Mac**, только
+чтением (ADR-016). Серверы, DNS и настройка туннелей живут в соседнем проекте `veil`.
 
 Язык общения и документации — русский. Комментарии в коде — английские, вывод команд — русский.
 
@@ -22,7 +22,10 @@ Universal Control. Когда он активен, радио периодиче
 и рядом — фон на `en1`: именно средние маскировали проблему полгода (ADR-008). Второй
 root-демон, **наблюдатель** (`com.dima.signal.link-watch`, ADR-014), раз в минуту пишет
 медиану RTT, BSSID, пира драйвера и долю повторов и называет причину плохой минуты — меню
-показывает, `signal link` листает историю.
+показывает, `signal link` листает историю. Третий, **наблюдатель туннеля**
+(`com.dima.signal.tunnel-watch`, ADR-016), смотрит дальше роутера глазами этого Mac: при запуске,
+раз в 15 минут и по `signal mark` — скорость с двух источников, ping, второй хоп и через RCI
+роутера политику Mac, порт туннеля, uptime роутера и чужой трафик в туннеле; `signal tunnel`.
 
 ## Структура
 
@@ -31,9 +34,10 @@ scripts/
   signal.sh              ← точка входа, разбор команд
   install.sh             ← демон + симлинк в PATH (единственное место, где нужен sudo)
   lib/                   ← log, paths (контракт файлов состояния), awdl (чтение радио),
-                            stats (перцентили — одни на measure и наблюдателя)
-  daemon/                ← awdl-keeper.sh, link-watch.sh и их plist — то, что работает от root
-  ops/                   ← status, airdrop, measure, compare, history, log, link
+                            stats (перцентили — одни на measure и наблюдателей),
+                            router (RCI Keenetic, только GET)
+  daemon/                ← awdl-keeper.sh, link-watch.sh, tunnel-watch.sh и их plist — от root
+  ops/                   ← status, airdrop, measure, compare, history, log, link, tunnel, mark
 menubar/                 ← main.swift, build.sh — значок в строке меню
 knowledge/
   decisions.md           ← ADR по каждому решению, включая отвергнутые
@@ -58,6 +62,13 @@ docs/notes/              ← разборы и исследования
 | `/usr/local/var/run/signal/link` | последняя минута канала: вердикт, причина, подсказка |
 | `/usr/local/var/log/signal/link.log` | эпизоды «плохо ↔ норма» |
 | `/usr/local/var/log/signal/link-YYYY-MM.csv` | сэмпл в минуту: RTT, awdl0, фон, BSSID, пир, повторы |
+| `/usr/local/libexec/signal/tunnel-watch`, `…/lib/router.sh` | наблюдатель туннеля, root:wheel |
+| `/Library/LaunchDaemons/com.dima.signal.tunnel-watch.plist` | его регистрация |
+| `/usr/local/etc/signal/router.conf` | логин RCI роутера, root:wheel 600 |
+| `/usr/local/var/run/signal/tunnel` | последний замер туннеля |
+| `/usr/local/var/run/signal/tunnel-mark` | отметка «сейчас медленно», владелец — пользователь |
+| `/usr/local/var/log/signal/tunnel.log` | перезагрузки роутера, смены порта и политики, эпизоды, отметки |
+| `/usr/local/var/log/signal/tunnel-YYYY-MM.csv` | замер: политика, туннель, порт, uptime, чужой трафик, ping, хоп 2, скорость |
 
 ## Как здесь принято работать
 

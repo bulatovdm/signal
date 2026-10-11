@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.dima.signal.tunnel-watch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/usr/local/libexec/signal/tunnel-watch</string>
+    </array>
+    <!-- RunAtLoad starts it at boot: the first sample after the Mac is switched
+         on is the one the complaint is about (ADR-016). -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <!-- Standard, like the link watcher: it measures time and speed, and
+         launchd stretches the timers of Background jobs. -->
+    <key>ProcessType</key>
+    <string>Standard</string>
+    <key>Umask</key>
+    <integer>18</integer>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/log/signal/tunnel-watch.err</string>
+    <key>StandardOutPath</key>
+    <string>/dev/null</string>
+</dict>
+</plist>

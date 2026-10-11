@@ -17,6 +17,8 @@ Usage: signal <команда> [аргументы]
   status                  Что с радио, сторожем и окном прямо сейчас
   log [n]                 Последние n событий сторожа (по умолчанию 20)
   link [n]                Канал Wi-Fi: что видит наблюдатель, плохие эпизоды, n последних минут
+  tunnel [n]              Туннель роутера: скорость, порт, перезагрузки, n последних замеров
+  mark [текст]            «Сейчас медленно» — отметка и внеочередной замер туннеля
 
 AirDrop:
   airdrop on [5m]         Открыть окно: поднять awdl0 и не гасить заданное время
@@ -30,8 +32,8 @@ AirDrop:
   history [n]             Последние n строк журнала замеров
 
 Установка:
-  install                 Поставить сторожа и наблюдателя (нужен sudo один раз)
-  uninstall               Убрать обоих и вернуть awdl0 системе
+  install                 Поставить сторожа и наблюдателей (нужен sudo один раз)
+  uninstall               Убрать всех и вернуть awdl0 системе
   menu install            Собрать и поставить значок в строке меню
   menu uninstall          Убрать значок
 
@@ -46,6 +48,8 @@ case "${1:-help}" in
     history|hist)   "${SCRIPT_DIR}/ops/history.sh" "${@:2}" ;;
     log)            "${SCRIPT_DIR}/ops/log.sh" "${@:2}" ;;
     link|l)         "${SCRIPT_DIR}/ops/link.sh" "${@:2}" ;;
+    tunnel|t)       "${SCRIPT_DIR}/ops/tunnel.sh" "${@:2}" ;;
+    mark)           "${SCRIPT_DIR}/ops/mark.sh" "${@:2}" ;;
     install)        "${SCRIPT_DIR}/install.sh" ;;
     uninstall)      "${SCRIPT_DIR}/install.sh" --uninstall ;;
     menu)           "${SCRIPT_DIR}/../menubar/build.sh" "${@:2}" ;;

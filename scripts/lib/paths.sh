@@ -17,6 +17,13 @@ SIGNAL_LINK_STATUS_FILE="$SIGNAL_STATE_DIR/link"
 SIGNAL_LINK_LOG_FILE="$SIGNAL_LOG_DIR/link.log"
 SIGNAL_LINK_CSV_GLOB="$SIGNAL_LOG_DIR/link-*.csv"
 
+# The tunnel watcher (ADR-016): the same three kinds of files, plus the mark
+# file that `signal mark` writes without sudo, like the request file.
+SIGNAL_TUNNEL_STATUS_FILE="$SIGNAL_STATE_DIR/tunnel"
+SIGNAL_TUNNEL_MARK_FILE="$SIGNAL_STATE_DIR/tunnel-mark"
+SIGNAL_TUNNEL_LOG_FILE="$SIGNAL_LOG_DIR/tunnel.log"
+SIGNAL_TUNNEL_CSV_GLOB="$SIGNAL_LOG_DIR/tunnel-*.csv"
+
 SIGNAL_DAEMON_LABEL="com.dima.signal.awdl-keeper"
 SIGNAL_DAEMON_PLIST="/Library/LaunchDaemons/${SIGNAL_DAEMON_LABEL}.plist"
 SIGNAL_DAEMON_BIN="/usr/local/libexec/signal/awdl-keeper"
@@ -25,6 +32,10 @@ SIGNAL_LIBEXEC_DIR="/usr/local/libexec/signal"
 SIGNAL_WATCH_LABEL="com.dima.signal.link-watch"
 SIGNAL_WATCH_PLIST="/Library/LaunchDaemons/${SIGNAL_WATCH_LABEL}.plist"
 SIGNAL_WATCH_BIN="$SIGNAL_LIBEXEC_DIR/link-watch"
+SIGNAL_TUNNEL_LABEL="com.dima.signal.tunnel-watch"
+SIGNAL_TUNNEL_PLIST="/Library/LaunchDaemons/${SIGNAL_TUNNEL_LABEL}.plist"
+SIGNAL_TUNNEL_BIN="$SIGNAL_LIBEXEC_DIR/tunnel-watch"
+SIGNAL_ROUTER_CONF="/usr/local/etc/signal/router.conf"
 
 SIGNAL_MENU_LABEL="com.dima.signal.menu"
 SIGNAL_MENU_PLIST="$HOME/Library/LaunchAgents/${SIGNAL_MENU_LABEL}.plist"
