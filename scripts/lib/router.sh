@@ -82,3 +82,32 @@ router_logout() {
 router_interface_bytes() {
     router_get "/show/interface/stat?name=$1" | "$JQ_BIN" -r '"\(.rxbytes) \(.txbytes)"' 2>/dev/null
 }
+
+# "policy tunnel" for a host's MAC. Policy "-" means the host has none and goes
+# straight to the provider; tunnel "-" then means no tunnel carries it.
+router_policy_tunnel() {
+    local mac=$1 policy tunnel
+    policy=$(router_get /show/rc/ip/hotspot \
+        | "$JQ_BIN" -r --arg mac "$mac" '[.host[]? | select(.mac == $mac) | (.policy // "-")][0] // "-"' 2>/dev/null)
+    [[ -n "$policy" ]] || { echo "? ?"; return; }
+    if [[ "$policy" == "-" ]]; then echo "- -"; return; fi
+    tunnel=$(router_get /show/rc/ip/policy \
+        | "$JQ_BIN" -r --arg policy "$policy" '.[$policy].permit[]? | select(.enabled == true) | .interface' 2>/dev/null | head -1)
+    echo "$policy ${tunnel:-?}"
+}
+
+# "local-port handshake-age-seconds" of a WireGuard tunnel's first peer.
+router_tunnel_peer() {
+    router_get "/show/interface/$1" \
+        | "$JQ_BIN" -r '.wireguard.peer[0] | "\(."local-port" // "?") \(."last-handshake" // "?")"' 2>/dev/null
+}
+
+# The last n lines of the router's own log. Keenetic answers GET /show/log with
+# "not found"; the log comes only from a POST of the same command (veil,
+# 2026-10-07). The command only reads.
+router_log_tail() {
+    [[ -n "$ROUTER_JAR" ]] || return 1
+    /usr/bin/curl -s -m 10 -b "$ROUTER_JAR" -c "$ROUTER_JAR" -X POST "http://$ROUTER_ADDRESS/rci/" \
+        -H 'Content-Type: application/json' -d "{\"show\":{\"log\":{\"max-lines\":$1}}}" \
+        | "$JQ_BIN" -r '.show.log.log[]? | "\(.timestamp) \(.ident): \(.message)"' 2>/dev/null
+}

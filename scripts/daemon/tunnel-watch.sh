@@ -89,10 +89,6 @@ ensure_state_files() {
 # "epoch text" — the epoch tells a new mark from one already handled.
 read_mark() { head -1 "$MARK_FILE" 2>/dev/null; }
 
-interface_is_active() {
-    ifconfig "$1" 2>/dev/null | grep -q 'status: active'
-}
-
 mbit_between() {
     local before=$1 after=$2 seconds=$3
     if [[ -n "$before" && -n "$after" && "$before" != "?" && "$after" != "?" && "$after" -ge "$before" ]]; then
@@ -116,26 +112,11 @@ router_snapshot() {
     CPULOAD=$("$JQ_BIN" -r '.cpuload // "?"' <<<"$system")
 
     mac=$(ifconfig "$IFACE" ether 2>/dev/null | awk '/ether/ {print $2; exit}')
-    POLICY=$(router_get /show/rc/ip/hotspot \
-        | "$JQ_BIN" -r --arg mac "$mac" '[.host[]? | select(.mac == $mac) | (.policy // "-")][0] // "-"' 2>/dev/null)
-    [[ -n "$POLICY" ]] || POLICY="?"
-
-    if [[ "$POLICY" == "-" ]]; then
-        TUNNEL="-"
-        return 0
-    fi
-    TUNNEL=$(router_get /show/rc/ip/policy \
-        | "$JQ_BIN" -r --arg policy "$POLICY" '.[$policy].permit[]? | select(.enabled == true) | .interface' 2>/dev/null | head -1)
-    [[ -n "$TUNNEL" ]] || TUNNEL="?"
-
+    read -r POLICY TUNNEL <<<"$(router_policy_tunnel "$mac")"
     case "$TUNNEL" in
-        Wireguard*)
-            local interface
-            interface=$(router_get "/show/interface/$TUNNEL")
-            PORT=$("$JQ_BIN" -r '.wireguard.peer[0]."local-port" // "?"' <<<"$interface" 2>/dev/null)
-            HANDSHAKE=$("$JQ_BIN" -r '.wireguard.peer[0]."last-handshake" // "?"' <<<"$interface" 2>/dev/null)
-            ;;
+        Wireguard*) read -r PORT HANDSHAKE <<<"$(router_tunnel_peer "$TUNNEL")" ;;
     esac
+    [[ -n "$PORT" ]] || PORT="?"; [[ -n "$HANDSHAKE" ]] || HANDSHAKE="?"
     return 0
 }
 
@@ -272,7 +253,7 @@ human_duration() {
 log_changes() {
     if [[ "$ROUTER_UPTIME" != "?" && "$LAST_UPTIME" != "?" && "$ROUTER_UPTIME" -lt "$LAST_UPTIME" ]]; then
         log_event "роутер перезагружен (работает $(human_duration "$ROUTER_UPTIME")), порт $TUNNEL: $LAST_PORT → $PORT"
-    elif [[ "$PORT" != "?" && "$LAST_PORT" != "?" && "$PORT" != "$LAST_PORT" ]]; then
+    elif [[ "$PORT" != "?" && "$LAST_PORT" != "?" && "$PORT" != "$LAST_PORT" && "$TUNNEL" == "$LAST_TUNNEL" ]]; then
         log_event "порт $TUNNEL сменился без перезагрузки роутера: $LAST_PORT → $PORT"
     fi
     if [[ "$LAST_TUNNEL" != "?" && "$TUNNEL" != "?" && "$TUNNEL" != "$LAST_TUNNEL" ]]; then

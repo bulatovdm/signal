@@ -26,6 +26,9 @@ root-демон, **наблюдатель** (`com.dima.signal.link-watch`, ADR-0
 (`com.dima.signal.tunnel-watch`, ADR-016), смотрит дальше роутера глазами этого Mac: при запуске,
 раз в 15 минут и по `signal mark` — скорость с двух источников, ping, второй хоп и через RCI
 роутера политику Mac, порт туннеля, uptime роутера и чужой трафик в туннеле; `signal tunnel`.
+Четвёртый, **пульс** (`com.dima.signal.pulse-watch`, ADR-017), раз в 5 с проверяет роутер и
+интернет по кабелю и по Wi-Fi, DNS и HTTPS; при обрыве пишет, где он, и снимает состояние
+роутера в отдельный файл; `signal pulse`.
 
 ## Структура
 
@@ -35,9 +38,9 @@ scripts/
   install.sh             ← демон + симлинк в PATH (единственное место, где нужен sudo)
   lib/                   ← log, paths (контракт файлов состояния), awdl (чтение радио),
                             stats (перцентили — одни на measure и наблюдателей),
-                            router (RCI Keenetic, только GET)
-  daemon/                ← awdl-keeper.sh, link-watch.sh, tunnel-watch.sh и их plist — от root
-  ops/                   ← status, airdrop, measure, compare, history, log, link, tunnel, mark
+                            router (RCI Keenetic, только чтение)
+  daemon/                ← awdl-keeper, link-watch, tunnel-watch, pulse-watch и их plist — от root
+  ops/                   ← status, airdrop, measure, compare, history, log, link, tunnel, mark, pulse
 menubar/                 ← main.swift, build.sh — значок в строке меню
 knowledge/
   decisions.md           ← ADR по каждому решению, включая отвергнутые
@@ -69,6 +72,12 @@ docs/notes/              ← разборы и исследования
 | `/usr/local/var/run/signal/tunnel-mark` | отметка «сейчас медленно», владелец — пользователь |
 | `/usr/local/var/log/signal/tunnel.log` | перезагрузки роутера, смены порта и политики, эпизоды, отметки |
 | `/usr/local/var/log/signal/tunnel-YYYY-MM.csv` | замер: политика, туннель, порт, uptime, чужой трафик, ping, хоп 2, скорость |
+| `/usr/local/libexec/signal/pulse-watch` | пульс, root:wheel |
+| `/Library/LaunchDaemons/com.dima.signal.pulse-watch.plist` | его регистрация |
+| `/usr/local/var/run/signal/pulse` | норма или обрыв сейчас, последний обрыв |
+| `/usr/local/var/log/signal/pulse.log` | обрывы: начало, место, что отказало, длительность |
+| `/usr/local/var/log/signal/pulse/` | снимок роутера и пути на каждый обрыв, 200 последних |
+| `/usr/local/var/log/signal/pulse-YYYY-MM.csv` | промахи каждой проверки по минутам |
 
 ## Как здесь принято работать
 
@@ -139,5 +148,9 @@ docs/notes/              ← разборы и исследования
 - **Пир в `LQM-WIFI: TX(…)` ядра не всегда равен BSSID.** После FT-перехода 2,4 → 5 ГГц он
   остаётся 2,4-гигагерцевым при радио на 149 — это и есть признак сломанной ассоциации
   (ADR-013). BSSID без root не виден: `<redacted>`.
+- **Роутер перехватывает весь DNS.** Запрос к любому адресу на порт 53 (`dig @1.2.3.4`)
+  отвечает сам Keenetic — какой бы DNS ни прописал VPN на Mac, путь кончается на роутере.
+- **Журнал Keenetic по GET (`/rci/show/log`) не отдаётся** — `not found`; только POST
+  `{"show":{"log":{"max-lines":N}}}` на `/rci/`.
 - **`sleep 0` в `pmset` на Mac Studio означает, что машина не засыпает вовсе.** «Пережить сон»
   здесь проверяется пробуждением дисплея и перезагрузкой.

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.dima.signal.pulse-watch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/usr/local/libexec/signal/pulse-watch</string>
+    </array>
+    <!-- From boot on: an outage is caught only while it lasts (ADR-017). -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <!-- Standard: a heartbeat every 5 s must stay every 5 s, and launchd
+         stretches the timers of Background jobs. -->
+    <key>ProcessType</key>
+    <string>Standard</string>
+    <key>Umask</key>
+    <integer>18</integer>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/log/signal/pulse-watch.err</string>
+    <key>StandardOutPath</key>
+    <string>/dev/null</string>
+</dict>
+</plist>

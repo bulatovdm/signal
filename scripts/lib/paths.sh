@@ -24,6 +24,13 @@ SIGNAL_TUNNEL_MARK_FILE="$SIGNAL_STATE_DIR/tunnel-mark"
 SIGNAL_TUNNEL_LOG_FILE="$SIGNAL_LOG_DIR/tunnel.log"
 SIGNAL_TUNNEL_CSV_GLOB="$SIGNAL_LOG_DIR/tunnel-*.csv"
 
+# The heartbeat (ADR-017): a flat JSON status, one line per outage, a snapshot
+# file per outage and a CSV of misses per minute.
+SIGNAL_PULSE_STATUS_FILE="$SIGNAL_STATE_DIR/pulse"
+SIGNAL_PULSE_LOG_FILE="$SIGNAL_LOG_DIR/pulse.log"
+SIGNAL_PULSE_SNAPSHOT_DIR="$SIGNAL_LOG_DIR/pulse"
+SIGNAL_PULSE_CSV_GLOB="$SIGNAL_LOG_DIR/pulse-*.csv"
+
 SIGNAL_DAEMON_LABEL="com.dima.signal.awdl-keeper"
 SIGNAL_DAEMON_PLIST="/Library/LaunchDaemons/${SIGNAL_DAEMON_LABEL}.plist"
 SIGNAL_DAEMON_BIN="/usr/local/libexec/signal/awdl-keeper"
@@ -36,6 +43,9 @@ SIGNAL_TUNNEL_LABEL="com.dima.signal.tunnel-watch"
 SIGNAL_TUNNEL_PLIST="/Library/LaunchDaemons/${SIGNAL_TUNNEL_LABEL}.plist"
 SIGNAL_TUNNEL_BIN="$SIGNAL_LIBEXEC_DIR/tunnel-watch"
 SIGNAL_ROUTER_CONF="/usr/local/etc/signal/router.conf"
+SIGNAL_PULSE_LABEL="com.dima.signal.pulse-watch"
+SIGNAL_PULSE_PLIST="/Library/LaunchDaemons/${SIGNAL_PULSE_LABEL}.plist"
+SIGNAL_PULSE_BIN="$SIGNAL_LIBEXEC_DIR/pulse-watch"
 
 SIGNAL_MENU_LABEL="com.dima.signal.menu"
 SIGNAL_MENU_PLIST="$HOME/Library/LaunchAgents/${SIGNAL_MENU_LABEL}.plist"

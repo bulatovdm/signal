@@ -19,6 +19,7 @@ Usage: signal <команда> [аргументы]
   link [n]                Канал Wi-Fi: что видит наблюдатель, плохие эпизоды, n последних минут
   tunnel [n]              Туннель роутера: скорость, порт, перезагрузки, n последних замеров
   mark [текст]            «Сейчас медленно» — отметка и внеочередной замер туннеля
+  pulse [n]               Пульс раз в 5 с: обрывы — когда, сколько, где; n последних минут с промахами
 
 AirDrop:
   airdrop on [5m]         Открыть окно: поднять awdl0 и не гасить заданное время
@@ -50,6 +51,7 @@ case "${1:-help}" in
     link|l)         "${SCRIPT_DIR}/ops/link.sh" "${@:2}" ;;
     tunnel|t)       "${SCRIPT_DIR}/ops/tunnel.sh" "${@:2}" ;;
     mark)           "${SCRIPT_DIR}/ops/mark.sh" "${@:2}" ;;
+    pulse|p)        "${SCRIPT_DIR}/ops/pulse.sh" "${@:2}" ;;
     install)        "${SCRIPT_DIR}/install.sh" ;;
     uninstall)      "${SCRIPT_DIR}/install.sh" --uninstall ;;
     menu)           "${SCRIPT_DIR}/../menubar/build.sh" "${@:2}" ;;

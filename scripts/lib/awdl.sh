@@ -29,6 +29,11 @@ interface_bytes() {
         }'
 }
 
+# "status: active" — a cable plugged in, or Wi-Fi associated.
+interface_is_active() {
+    ifconfig "$1" 2>/dev/null | grep -q 'status: active'
+}
+
 default_gateway() {
     local gateway
     gateway=$(route -n get default 2>/dev/null | awk '/gateway:/ {print $2; exit}')

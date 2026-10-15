@@ -1,5 +1,5 @@
 #!/bin/bash
-# Signal — Install the keeper, the two watchers and the `signal` command.
+# Signal — Install the keeper, the watchers, the heartbeat and the `signal` command.
 #
 # Root is needed once, here: the daemon owns awdl0 (ADR-003) and everyday use
 # goes through the request file without sudo (ADR-005).
@@ -187,6 +187,29 @@ install_tunnel_watch() {
     log_ok "Наблюдатель туннеля загружен в launchd: при запуске, раз в 15 мин и по signal mark"
 }
 
+install_pulse_watch() {
+    $SUDO install -m 755 -o root -g wheel "$SCRIPT_DIR/daemon/pulse-watch.sh" "$SIGNAL_PULSE_BIN"
+    $SUDO install -m 644 -o root -g wheel "$SCRIPT_DIR/daemon/$(basename "$SIGNAL_PULSE_PLIST")" "$SIGNAL_PULSE_PLIST"
+    log_ok "Пульс: $SIGNAL_PULSE_BIN"
+    if launchctl print "system/$SIGNAL_PULSE_LABEL" >/dev/null 2>&1; then
+        $SUDO launchctl bootout "system/$SIGNAL_PULSE_LABEL" 2>/dev/null || true
+        local waited=0
+        while launchctl print "system/$SIGNAL_PULSE_LABEL" >/dev/null 2>&1 && [[ $waited -lt 10 ]]; do
+            sleep 1; waited=$((waited + 1))
+        done
+    fi
+    $SUDO launchctl bootstrap system "$SIGNAL_PULSE_PLIST"
+    log_ok "Пульс загружен в launchd: раз в 5 с, при обрыве — снимок роутера"
+}
+
+uninstall_pulse_watch() {
+    if launchctl print "system/$SIGNAL_PULSE_LABEL" >/dev/null 2>&1; then
+        $SUDO launchctl bootout "system/$SIGNAL_PULSE_LABEL" 2>/dev/null || true
+        log_ok "Пульс выгружен"
+    fi
+    $SUDO rm -f "$SIGNAL_PULSE_PLIST" "$SIGNAL_PULSE_BIN"
+}
+
 uninstall_tunnel_watch() {
     if launchctl print "system/$SIGNAL_TUNNEL_LABEL" >/dev/null 2>&1; then
         $SUDO launchctl bootout "system/$SIGNAL_TUNNEL_LABEL" 2>/dev/null || true
@@ -225,9 +248,11 @@ case "${1:-}" in
         install_watch
         install_router_credentials "${2:-}"
         install_tunnel_watch
+        install_pulse_watch
         exit 0 ;;
     --root-uninstall)
         [[ $(id -u) -eq 0 ]] || { log_error "--root-uninstall запускается только от root"; exit 1; }
+        uninstall_pulse_watch
         uninstall_tunnel_watch
         uninstall_watch
         uninstall_daemon
