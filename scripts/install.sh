@@ -202,6 +202,29 @@ install_pulse_watch() {
     log_ok "Пульс загружен в launchd: раз в 5 с, при обрыве — снимок роутера"
 }
 
+install_tunnels_watch() {
+    $SUDO install -m 755 -o root -g wheel "$SCRIPT_DIR/daemon/tunnels-watch.sh" "$SIGNAL_TUNNELS_BIN"
+    $SUDO install -m 644 -o root -g wheel "$SCRIPT_DIR/daemon/$(basename "$SIGNAL_TUNNELS_PLIST")" "$SIGNAL_TUNNELS_PLIST"
+    log_ok "Наблюдатель туннелей роутера: $SIGNAL_TUNNELS_BIN"
+    if launchctl print "system/$SIGNAL_TUNNELS_LABEL" >/dev/null 2>&1; then
+        $SUDO launchctl bootout "system/$SIGNAL_TUNNELS_LABEL" 2>/dev/null || true
+        local waited=0
+        while launchctl print "system/$SIGNAL_TUNNELS_LABEL" >/dev/null 2>&1 && [[ $waited -lt 10 ]]; do
+            sleep 1; waited=$((waited + 1))
+        done
+    fi
+    $SUDO launchctl bootstrap system "$SIGNAL_TUNNELS_PLIST"
+    log_ok "Наблюдатель туннелей роутера загружен в launchd: раз в 10 с, все туннели"
+}
+
+uninstall_tunnels_watch() {
+    if launchctl print "system/$SIGNAL_TUNNELS_LABEL" >/dev/null 2>&1; then
+        $SUDO launchctl bootout "system/$SIGNAL_TUNNELS_LABEL" 2>/dev/null || true
+        log_ok "Наблюдатель туннелей роутера выгружен"
+    fi
+    $SUDO rm -f "$SIGNAL_TUNNELS_PLIST" "$SIGNAL_TUNNELS_BIN"
+}
+
 uninstall_pulse_watch() {
     if launchctl print "system/$SIGNAL_PULSE_LABEL" >/dev/null 2>&1; then
         $SUDO launchctl bootout "system/$SIGNAL_PULSE_LABEL" 2>/dev/null || true
@@ -249,9 +272,11 @@ case "${1:-}" in
         install_router_credentials "${2:-}"
         install_tunnel_watch
         install_pulse_watch
+        install_tunnels_watch
         exit 0 ;;
     --root-uninstall)
         [[ $(id -u) -eq 0 ]] || { log_error "--root-uninstall запускается только от root"; exit 1; }
+        uninstall_tunnels_watch
         uninstall_pulse_watch
         uninstall_tunnel_watch
         uninstall_watch

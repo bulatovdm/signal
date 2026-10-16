@@ -28,7 +28,10 @@ root-демон, **наблюдатель** (`com.dima.signal.link-watch`, ADR-0
 роутера политику Mac, порт туннеля, uptime роутера и чужой трафик в туннеле; `signal tunnel`.
 Четвёртый, **пульс** (`com.dima.signal.pulse-watch`, ADR-017), раз в 5 с проверяет роутер и
 интернет по кабелю и по Wi-Fi, DNS и HTTPS; при обрыве пишет, где он, и снимает состояние
-роутера в отдельный файл; `signal pulse`.
+роутера в отдельный файл; `signal pulse`. Пятый, **наблюдатель туннелей роутера**
+(`com.dima.signal.tunnels-watch`, ADR-018), раз в 10 с просит роутер пингнуть через каждый туннель
+его вход и выход — независимо от политики Mac — и пишет трафик туннелей и уходы сторожа;
+`signal tunnels`, недельный отчёт — `signal tunnels report`.
 
 ## Структура
 
@@ -39,8 +42,8 @@ scripts/
   lib/                   ← log, paths (контракт файлов состояния), awdl (чтение радио),
                             stats (перцентили — одни на measure и наблюдателей),
                             router (RCI Keenetic, только чтение)
-  daemon/                ← awdl-keeper, link-watch, tunnel-watch, pulse-watch и их plist — от root
-  ops/                   ← status, airdrop, measure, compare, history, log, link, tunnel, mark, pulse
+  daemon/                ← awdl-keeper, link-watch, tunnel-watch, pulse-watch, tunnels-watch и plist — от root
+  ops/                   ← status, airdrop, measure, compare, history, log, link, tunnel, mark, pulse, tunnels
 menubar/                 ← main.swift, build.sh — значок в строке меню
 knowledge/
   decisions.md           ← ADR по каждому решению, включая отвергнутые
@@ -78,6 +81,11 @@ docs/notes/              ← разборы и исследования
 | `/usr/local/var/log/signal/pulse.log` | обрывы: начало, место, что отказало, длительность |
 | `/usr/local/var/log/signal/pulse/` | снимок роутера и пути на каждый обрыв, 200 последних |
 | `/usr/local/var/log/signal/pulse-YYYY-MM.csv` | промахи каждой проверки по минутам |
+| `/usr/local/libexec/signal/tunnels-watch` | наблюдатель туннелей роутера, root:wheel |
+| `/Library/LaunchDaemons/com.dima.signal.tunnels-watch.plist` | его регистрация |
+| `/usr/local/var/run/signal/tunnels` | последняя проба каждого туннеля |
+| `/usr/local/var/log/signal/tunnels.log` | молчание туннелей с участком, уходы и возвраты сторожа |
+| `/usr/local/var/log/signal/tunnels-YYYY-MM.csv` | проба раз в 10 с: вход и выход каждого туннеля, трафик, активные туннели политик |
 
 ## Как здесь принято работать
 
@@ -152,5 +160,9 @@ docs/notes/              ← разборы и исследования
   отвечает сам Keenetic — какой бы DNS ни прописал VPN на Mac, путь кончается на роутере.
 - **Журнал Keenetic по GET (`/rci/show/log`) не отдаётся** — `not found`; только POST
   `{"show":{"log":{"max-lines":N}}}` на `/rci/`.
+- **RCI отдаёт вывод `tools ping` через ~0,25 с, не дожидаясь ответа** (`"continued": true`):
+  ответ медленнее ~200 мс выглядит потерей. Параметров ожидания у команды нет (ADR-018).
+- **`awk` на macOS считает строки в байтах**, а кириллическая буква — два байта: `substr` и
+  `RSTART` по русскому тексту режут не там. Резать по словам (`split`), а не по смещениям.
 - **`sleep 0` в `pmset` на Mac Studio означает, что машина не засыпает вовсе.** «Пережить сон»
   здесь проверяется пробуждением дисплея и перезагрузкой.

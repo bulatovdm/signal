@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.dima.signal.tunnels-watch</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/usr/local/libexec/signal/tunnels-watch</string>
+    </array>
+    <!-- From boot on, while the Mac is on: a week of every tunnel (ADR-018). -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <!-- Standard: a probe every 10 s must stay every 10 s, and launchd
+         stretches the timers of Background jobs. -->
+    <key>ProcessType</key>
+    <string>Standard</string>
+    <key>Umask</key>
+    <integer>18</integer>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/log/signal/tunnels-watch.err</string>
+    <key>StandardOutPath</key>
+    <string>/dev/null</string>
+</dict>
+</plist>

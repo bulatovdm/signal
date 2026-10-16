@@ -31,6 +31,11 @@ SIGNAL_PULSE_LOG_FILE="$SIGNAL_LOG_DIR/pulse.log"
 SIGNAL_PULSE_SNAPSHOT_DIR="$SIGNAL_LOG_DIR/pulse"
 SIGNAL_PULSE_CSV_GLOB="$SIGNAL_LOG_DIR/pulse-*.csv"
 
+# The router's tunnels watcher (ADR-018): every tunnel probed by the router itself.
+SIGNAL_TUNNELS_STATUS_FILE="$SIGNAL_STATE_DIR/tunnels"
+SIGNAL_TUNNELS_LOG_FILE="$SIGNAL_LOG_DIR/tunnels.log"
+SIGNAL_TUNNELS_CSV_GLOB="$SIGNAL_LOG_DIR/tunnels-*.csv"
+
 SIGNAL_DAEMON_LABEL="com.dima.signal.awdl-keeper"
 SIGNAL_DAEMON_PLIST="/Library/LaunchDaemons/${SIGNAL_DAEMON_LABEL}.plist"
 SIGNAL_DAEMON_BIN="/usr/local/libexec/signal/awdl-keeper"
@@ -46,6 +51,9 @@ SIGNAL_ROUTER_CONF="/usr/local/etc/signal/router.conf"
 SIGNAL_PULSE_LABEL="com.dima.signal.pulse-watch"
 SIGNAL_PULSE_PLIST="/Library/LaunchDaemons/${SIGNAL_PULSE_LABEL}.plist"
 SIGNAL_PULSE_BIN="$SIGNAL_LIBEXEC_DIR/pulse-watch"
+SIGNAL_TUNNELS_LABEL="com.dima.signal.tunnels-watch"
+SIGNAL_TUNNELS_PLIST="/Library/LaunchDaemons/${SIGNAL_TUNNELS_LABEL}.plist"
+SIGNAL_TUNNELS_BIN="$SIGNAL_LIBEXEC_DIR/tunnels-watch"
 
 SIGNAL_MENU_LABEL="com.dima.signal.menu"
 SIGNAL_MENU_PLIST="$HOME/Library/LaunchAgents/${SIGNAL_MENU_LABEL}.plist"

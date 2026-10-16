@@ -135,3 +135,27 @@ router_log_tail() {
         -H 'Content-Type: application/json' -d "{\"show\":{\"log\":{\"max-lines\":$1}}}" \
         | "$JQ_BIN" -r '.show.log.log[]? | "\(.timestamp) \(.ident): \(.message)"' 2>/dev/null
 }
+
+# Runs one CLI command through RCI's "parse" and prints its message lines. Used
+# for "tools ping", which the router executes without changing its state.
+router_parse() {
+    [[ -n "$ROUTER_JAR" ]] || return 1
+    /usr/bin/curl -s -m 10 -b "$ROUTER_JAR" -c "$ROUTER_JAR" -X POST "http://$ROUTER_ADDRESS/rci/" \
+        -H 'Content-Type: application/json' \
+        -d "$("$JQ_BIN" -nc --arg command "$1" '[{parse: $command}]')" \
+        | "$JQ_BIN" -r '.[0].parse.message[]? // empty' 2>/dev/null
+}
+
+# RTT in ms of one ping the router sends to a host through one of its
+# interfaces, or "-" when no reply came back. RCI hands the output back after
+# about 0.25 s without waiting for the reply ("continued": true; ADR-018), so
+# "-" means "no reply within ~200 ms": a loss or a reply slower than that.
+# "?" means the request itself failed (no session, no answer from RCI) — it says
+# nothing about the tunnel and must never be counted as silence.
+router_ping_via() {
+    local interface=$1 host=$2 output rtt
+    output=$(router_parse "tools ping $host count 1 source-interface $interface")
+    if ! grep -q '^PING ' <<<"$output"; then echo "?"; return; fi
+    rtt=$(sed -n 's/.* bytes from .*time=\([0-9.]*\) ms.*/\1/p' <<<"$output" | head -1)
+    echo "${rtt:--}"
+}
