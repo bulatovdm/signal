@@ -83,17 +83,41 @@ router_interface_bytes() {
     router_get "/show/interface/stat?name=$1" | "$JQ_BIN" -r '"\(.rxbytes) \(.txbytes)"' 2>/dev/null
 }
 
-# "policy tunnel" for a host's MAC. Policy "-" means the host has none and goes
-# straight to the provider; tunnel "-" then means no tunnel carries it.
+# "policy tunnel" for a host's MAC: the tunnel that carries the policy's traffic
+# right now. Since the failover (veil ADR-037) a policy permits two tunnels by
+# priority, and the configured order says nothing about which one is in use:
+# the policy's live routing table does — its default route points at the
+# active one. The configured first is used only when the live table has no
+# default route. Policy "-" means the host has none and goes straight to the
+# provider; tunnel "-" then means no tunnel carries it.
 router_policy_tunnel() {
     local mac=$1 policy tunnel
     policy=$(router_get /show/rc/ip/hotspot \
         | "$JQ_BIN" -r --arg mac "$mac" '[.host[]? | select(.mac == $mac) | (.policy // "-")][0] // "-"' 2>/dev/null)
     [[ -n "$policy" ]] || { echo "? ?"; return; }
     if [[ "$policy" == "-" ]]; then echo "- -"; return; fi
-    tunnel=$(router_get /show/rc/ip/policy \
-        | "$JQ_BIN" -r --arg policy "$policy" '.[$policy].permit[]? | select(.enabled == true) | .interface' 2>/dev/null | head -1)
+    tunnel=$(router_policy_active "$policy")
+    [[ -n "$tunnel" ]] || tunnel=$(router_policy_permitted "$policy" | head -1)
     echo "$policy ${tunnel:-?}"
+}
+
+# The interface the policy's default route goes through now.
+router_policy_active() {
+    router_get /show/ip/policy \
+        | "$JQ_BIN" -r --arg policy "$1" '[.[$policy].route4.route[]? | select(.destination == "0.0.0.0/0")] | sort_by(.metric) | .[0].interface // empty' 2>/dev/null
+}
+
+# The policy's enabled interfaces in priority order, one per line.
+router_policy_permitted() {
+    router_get /show/rc/ip/policy \
+        | "$JQ_BIN" -r --arg policy "$1" '.[$policy].permit[]? | select(.enabled == true) | .interface' 2>/dev/null
+}
+
+# "status" (pass/fail) of the ping-check on an interface, or nothing when the
+# interface has none.
+router_ping_check() {
+    router_get /show/ping-check \
+        | "$JQ_BIN" -r --arg interface "$1" '[.pingcheck[]? | .interface[$interface]? | select(. != null) | .status][0] // empty' 2>/dev/null
 }
 
 # "local-port handshake-age-seconds" of a WireGuard tunnel's first peer.

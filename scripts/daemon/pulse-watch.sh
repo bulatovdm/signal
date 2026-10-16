@@ -205,7 +205,7 @@ take_snapshot() {
                         read -r rx2 tx2 <<<"$(router_interface_bytes "$tunnel")"
                         ;;
                 esac
-                printf '%s: политика %s, туннель %s, порт %s, рукопожатие %s с назад' \
+                printf '%s: политика %s, туннель %s (активный), порт %s, рукопожатие %s с назад' \
                     "$interface" "$policy" "$tunnel" "$port" "$handshake"
                 if [[ -n "$rx1" && -n "$rx2" ]]; then
                     awk -v a="$rx1" -v b="$rx2" -v c="$tx1" -v d="$tx2" \
@@ -213,6 +213,15 @@ take_snapshot() {
                 fi
                 echo
             done
+            if [[ "$policy" != "-" && "$policy" != "?" ]]; then
+                local permitted check
+                echo "туннели политики $policy по приоритету:"
+                while read -r permitted; do
+                    [[ -n "$permitted" ]] || continue
+                    check=$(router_ping_check "$permitted")
+                    echo "  $permitted${check:+, проверка доступности: $check}$([[ "$permitted" == "$tunnel" ]] && echo " ← сейчас")"
+                done <<<"$(router_policy_permitted "$policy")"
+            fi
             echo
             echo "== Журнал роутера, последние строки"
             router_log_tail 25
@@ -243,11 +252,14 @@ append_minute() {
         mv -f "$file" "${file%.csv}.before-$(date +%Y%m%d%H%M%S).csv"
     fi
     [[ -f "$file" ]] || echo "$CSV_HEADER" > "$file"
-    row="$(date -u +%Y-%m-%dT%H:%MZ),$MINUTE_CYCLES"
+    # The row is written at the start of the next minute; it is labelled with the
+    # minute it counts (rows before 2026-10-16 14:xx carry the next minute).
+    row="$MINUTE_STAMP,$MINUTE_CYCLES"
     for name in $CHECKS $LOCATORS; do row="$row,$(eval echo "\$MISSES_$name")"; done
     echo "$row,$MINUTE_OUTAGE" >> "$file"
     chmod 644 "$file" 2>/dev/null
     MINUTE_CYCLES=0; MINUTE_OUTAGE=0
+    MINUTE_STAMP=$(date -u +%Y-%m-%dT%H:%MZ)
     for name in $CHECKS $LOCATORS; do eval "MISSES_$name=0"; done
 }
 
@@ -336,6 +348,7 @@ main() {
     OUTAGE_SINCE=0; OPEN_DOWN=""; WORST_DOWN=""; LAST_OUTAGE=""
     OUT_CYCLES=0; OUT_ENTRY_OK=0; OUT_EXIT_OK=0; LOC_ENTRY="?"; LOC_EXIT="?"
     MINUTE_CYCLES=0; MINUTE_OUTAGE=0
+    MINUTE_STAMP=$(date -u +%Y-%m-%dT%H:%MZ)
     local minute
     minute=$(date +%M)
 
